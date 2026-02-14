@@ -1,0 +1,6 @@
+[
+  {"name": "symbol", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "price", "type": "FLOAT", "mode": "REQUIRED"},
+  {"name": "volume", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED"}
+]

@@ -1,31 +1,37 @@
 import requests
-from bs4 import BeautifulSoup
 import pandas as pd
+from datetime import datetime
+from google.cloud import bigquery
+import os
 
-def acquire_data(url):
-    print(f"Fetching data from {url}...")
+# Configuration
+PROJECT_ID = "your-project-id"
+DATASET_ID = "market_data"
+TABLE_ID = "raw_prices"
+
+def fetch_market_data():
+    """Extract: Mocking an API call to get crypto prices"""
+    url = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
+    response = requests.get(url)
+    data = response.json()
     
-    # 1. Request the page
-    headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(url, headers=headers)
+    df = pd.DataFrame([{
+        "symbol": data['symbol'],
+        "price": float(data['price']),
+        "volume": 100.0, # Mock volume
+        "ingested_at": datetime.utcnow().isoformat()
+    }])
+    return df
+
+def load_to_bigquery(df):
+    """Load: Push data to BQ using the service account"""
+    client = bigquery.Client(project=PROJECT_ID)
+    table_ref = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
     
-    if response.status_code == 200:
-        # 2. Parse the HTML
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Example: Scrape all <h2> headers (common for article titles)
-        titles = soup.find_all('h2')
-        
-        data_list = [t.get_text().strip() for t in titles]
-        
-        # 3. Save to a CSV using Pandas
-        df = pd.DataFrame(data_list, columns=['Title'])
-        df.to_csv('acquired_data.csv', index=False)
-        print("Success! Data saved to acquired_data.csv")
-    else:
-        print(f"Failed to retrieve data. Status code: {response.status_code}")
+    job = client.load_table_from_dataframe(df, table_ref)
+    job.result()  # Wait for the job to complete
+    print(f"Successfully loaded {len(df)} rows to {table_ref}")
 
 if __name__ == "__main__":
-    # You can replace this with a real URL you have permission to scrape
-    target_url = "https://example.com" 
-    acquire_data(target_url)
+    data_df = fetch_market_data()
+    load_to_bigquery(data_df)
